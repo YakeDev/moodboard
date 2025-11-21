@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoodBoard | Inspiration visuelle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <strong>MoodBoard</strong>
+          <div class="muted" aria-hidden="true">Galerie d'inspiration</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navigation principale">
+        <a class="active" href="#recherche">Recherche</a>
+        <a href="#resultats">Résultats</a>
+        <a href="#collections">Collections</a>
+        <a href="#favoris">Favoris <span class="dot" aria-hidden="true"></span></a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="muted">Astuce</span>
+        <span>Commencez par saisir un mot-clé pour charger des images Unsplash.</span>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <form id="search-form" class="search" aria-label="Recherche">
+          <input id="search-input" type="search" name="query" placeholder="Rechercher des idées..." aria-label="Rechercher des idées">
+        </form>
+        <button type="button" aria-label="Filtres">⏷</button>
+        <button type="button" aria-label="Ajouter">+</button>
+      </header>
+
+      <section id="recherche" aria-labelledby="recherche-title">
+        <header>
+          <h2 id="recherche-title">Recherche</h2>
+          <span class="pill">Étape 1</span>
+        </header>
+        <p class="muted">Entrez un mot-clé pour explorer l'inspiration visuelle. Les résultats s'afficheront ci-dessous.</p>
+      </section>
+
+      <section id="resultats" aria-labelledby="resultats-title">
+        <header>
+          <h2 id="resultats-title">Résultats</h2>
+          <span class="pill">Grille</span>
+        </header>
+        <p class="muted" id="result-status">Tapez un mot-clé pour lancer une recherche.</p>
+        <div class="cards-grid" id="results-grid" role="list" aria-label="Résultats de recherche">
+          <article class="card" role="listitem">
+            <img src="https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?auto=format&fit=crop&w=600&q=80" alt="Personne tenant une tasse fumante">
+            <div class="card-footer">
+              <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="Walter Brown">
+              <div class="meta">
+                <strong>Walter Brown</strong>
+                <span>102 abonnés</span>
+              </div>
+            </div>
+          </article>
+          <article class="card" role="listitem">
+            <img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80" alt="Fille avec pastèque">
+            <div class="card-footer">
+              <img class="avatar" src="https://randomuser.me/api/portraits/women/44.jpg" alt="Sonia Narang">
+              <div class="meta">
+                <strong>Sonia Narang</strong>
+                <span>210 abonnés</span>
+              </div>
+            </div>
+          </article>
+          <article class="card" role="listitem">
+            <img src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80" alt="Bouteille d'eau sur fond turquoise">
+            <div class="card-footer">
+              <img class="avatar" src="https://randomuser.me/api/portraits/men/28.jpg" alt="Skyler White">
+              <div class="meta">
+                <strong>Skyler White</strong>
+                <span>480 abonnés</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="collections" aria-labelledby="collections-title">
+        <header>
+          <h2 id="collections-title">Collections</h2>
+          <span class="pill">Favoris organisés</span>
+        </header>
+        <div class="collection-list" id="collection-list" aria-live="polite">
+          <div class="collection-item">
+            <span>Par défaut</span>
+            <span class="badge">6 visuels</span>
+          </div>
+          <div class="collection-item">
+            <span>Couleurs vives</span>
+            <span class="badge">3 visuels</span>
+          </div>
+          <div class="collection-item">
+            <span>Portraits</span>
+            <span class="badge">4 visuels</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="favoris" aria-labelledby="favoris-title">
+        <header>
+          <h2 id="favoris-title">Favoris</h2>
+          <span class="pill">Enregistrés</span>
+        </header>
+        <div class="favorite-list" id="favorite-list">
+          <div class="favorite-item">
+            <div>
+              <strong>Vue inspiration</strong>
+              <div class="muted">Ajouté aujourd'hui</div>
+            </div>
+            <span class="badge">2</span>
+          </div>
+          <div class="favorite-item">
+            <div>
+              <strong>Mesh & gradients</strong>
+              <div class="muted">Ajouté cette semaine</div>
+            </div>
+            <span class="badge">5</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>

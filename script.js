@@ -30,6 +30,8 @@ const els = {
 };
 
 function renderResults(items) {
+  if (!els.resultsGrid) return;
+  // Rend les cartes de résultats Unsplash dans la grille principale.
   if (!items.length) {
     els.resultsGrid.innerHTML = `<p class="muted">Aucun résultat trouvé.</p>`;
     return;
@@ -49,7 +51,7 @@ function renderResults(items) {
               <img class="avatar" src="${item.avatar}" alt="${item.author}">
               <div class="meta">
                 <strong>${item.author}</strong>
-                <span>${item.followers} abonnés</span>
+                <span class="muted">${item.followers} followers</span>
               </div>
             </div>
             <button type="button" class="icon-btn ghost" aria-label="Télécharger l'image" title="Télécharger l'image"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
@@ -61,6 +63,8 @@ function renderResults(items) {
 }
 
 function renderCollections(collections) {
+  if (!els.collectionList) return;
+  // Affiche la liste de collections statiques.
   els.collectionList.innerHTML = collections
     .map(
       (collection) => `
@@ -74,6 +78,8 @@ function renderCollections(collections) {
 }
 
 function renderFavorites(favorites) {
+  if (!els.favoriteList) return;
+  // Affiche les favoris statiques.
   els.favoriteList.innerHTML = favorites
     .map(
       (favorite) => `
@@ -90,12 +96,14 @@ function renderFavorites(favorites) {
 }
 
 function updateStatus(text) {
+  // Met à jour le texte de statut au-dessus des résultats.
   if (els.resultStatus) {
     els.resultStatus.textContent = text;
   }
 }
 
 function toggleMenu(force) {
+  // Ouvre/ferme le menu latéral sur mobile et met à jour aria-expanded.
   const shouldOpen = typeof force === "boolean" ? force : !document.body.classList.contains("menu-open");
   document.body.classList.toggle("menu-open", shouldOpen);
   if (els.menuToggle) {
@@ -104,6 +112,7 @@ function toggleMenu(force) {
 }
 
 function bindMenu() {
+  // Ajoute les écouteurs pour le burger et l'overlay du menu.
   if (!els.menuToggle || !els.sidebar) return;
   els.menuToggle.addEventListener("click", () => toggleMenu());
   if (els.overlay) {
@@ -112,10 +121,10 @@ function bindMenu() {
 }
 
 async function fetchPhotos(query) {
+  // Appelle l'API Unsplash et prépare les données pour l'affichage.
   const url = new URL("https://api.unsplash.com/search/photos");
   url.searchParams.set("query", query || DEFAULT_QUERY);
   url.searchParams.set("per_page", PER_PAGE);
-  url.searchParams.set("orientation", "portrait");
 
   const response = await fetch(url.toString(), {
     headers: {
@@ -141,6 +150,8 @@ async function fetchPhotos(query) {
 }
 
 async function loadResults(query) {
+  if (!els.resultsGrid) return;
+  // Charge les résultats pour un terme donné et met à jour l'interface.
   const term = query?.trim() || DEFAULT_QUERY;
   state.query = term;
   updateStatus(`Chargement des images pour « ${term} » ...`);
@@ -165,20 +176,29 @@ async function loadResults(query) {
 }
 
 async function handleSearch(event) {
+  // Soumet la recherche utilisateur et relance le chargement d'images.
   event.preventDefault();
   const query = els.searchInput?.value || "";
   await loadResults(query);
 }
 
 async function init() {
-  updateStatus("Chargement des inspirations...");
+  // Initialise la page, bind les listeners et déclenche le chargement initial.
+  const hasResults = Boolean(els.resultsGrid);
+
+  if (hasResults) {
+    updateStatus("Chargement des inspirations...");
+  }
+
   renderCollections(state.collections);
   renderFavorites(state.favorites);
-  if (els.searchForm) {
+  if (els.searchForm && hasResults) {
     els.searchForm.addEventListener("submit", handleSearch);
   }
   bindMenu();
-  await loadResults(DEFAULT_QUERY);
+  if (hasResults) {
+    await loadResults(DEFAULT_QUERY);
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -605,6 +605,14 @@ body.collection-modal-open {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
+.collection-option__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
 .collection-option img {
   width: 44px;
   height: 44px;
@@ -617,11 +625,33 @@ body.collection-modal-open {
   display: grid;
   gap: 2px;
   text-align: left;
+  min-width: 0;
+}
+
+.collection-option__meta strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .collection-modal__empty {
   padding: 20px 12px;
   color: var(--muted);
+}
+
+.collection-option__delete {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.collection-option__delete:hover {
+  color: #ef4444;
+  background: #fef2f2;
 }
 
 .collection-modal__new {

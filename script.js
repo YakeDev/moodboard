@@ -290,6 +290,14 @@ function ensureCollectionModal() {
 
   if (els.collectionModalList) {
     els.collectionModalList.addEventListener("click", (event) => {
+      const deleteBtn = event.target.closest("[data-col-delete]");
+      if (deleteBtn) {
+        const id = deleteBtn.getAttribute("data-col-delete");
+        deleteCollection(id);
+        renderCollectionModalList(els.collectionModalSearch?.value || "");
+        renderCollections(buildCollectionSections());
+        return;
+      }
       const target = event.target.closest("[data-col-select]");
       if (!target) return;
       const id = target.getAttribute("data-col-select");
@@ -321,6 +329,11 @@ function ensureCollectionModal() {
   });
 }
 
+function deleteCollection(collectionId) {
+  state.collections = state.collections.filter((c) => c.id !== collectionId);
+  storage.saveCollections(state.collections);
+}
+
 function renderCollectionModalList(filterTerm = "") {
   if (!els.collectionModalList) return;
   const term = (filterTerm || "").toLowerCase();
@@ -337,25 +350,43 @@ function renderCollectionModalList(filterTerm = "") {
       const count = collection.items.length;
       const label = `${count} image${count > 1 ? "s" : ""}`;
       return `
-        <button type="button" class="collection-option" data-col-select="${collection.id}">
-          <img src="${cover}" alt="" aria-hidden="true">
-          <div class="collection-option__meta">
-            <strong>${collection.name}</strong>
-            <span class="muted">${label}</span>
+        <div class="collection-option" data-col-select="${collection.id}">
+          <div class="collection-option__info">
+            <img src="${cover}" alt="" aria-hidden="true">
+            <div class="collection-option__meta">
+              <strong>${collection.name}</strong>
+              <span class="muted">${label}</span>
+            </div>
           </div>
-        </button>
+          <button type="button" class="collection-option__delete" data-col-delete="${collection.id}" aria-label="Supprimer la collection">
+            <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+          </button>
+        </div>
       `;
     })
     .join("");
 }
 
-function openCollectionModal(photo) {
+function openCollectionModal(photo, clickEvent) {
   // Ouvre le menu contextuel et prepare la liste filtrable
   ensureCollectionModal();
   activeCollectionPhoto = photo;
   els.collectionModal?.classList.add("open");
   document.body.classList.add("collection-modal-open");
   renderCollectionModalList(els.collectionModalSearch?.value || "");
+  const panel = els.collectionModal?.querySelector(".collection-modal__panel");
+  if (panel && clickEvent?.clientX !== undefined) {
+    const { clientX, clientY } = clickEvent;
+    const panelWidth = panel.offsetWidth || 360;
+    const panelHeight = panel.offsetHeight || 420;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const left = Math.min(Math.max(12, clientX - panelWidth / 2), viewportWidth - panelWidth - 12);
+    const top = Math.min(Math.max(12, clientY + 12), viewportHeight - panelHeight - 12);
+    panel.style.position = "fixed";
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+  }
   if (els.collectionModalSearch) {
     els.collectionModalSearch.focus();
     els.collectionModalSearch.select();
@@ -367,6 +398,12 @@ function closeCollectionModal() {
   if (!els.collectionModal) return;
   els.collectionModal.classList.remove("open");
   document.body.classList.remove("collection-modal-open");
+  const panel = els.collectionModal.querySelector(".collection-modal__panel");
+  if (panel) {
+    panel.style.left = "";
+    panel.style.top = "";
+    panel.style.position = "";
+  }
   activeCollectionPhoto = null;
 }
 
@@ -512,7 +549,7 @@ function onResultsClick(event) {
   if (collectionId) {
     const photo = state.results.find((item) => item.id === collectionId);
     if (photo) {
-      openCollectionModal(photo);
+      openCollectionModal(photo, event);
     }
   }
 }

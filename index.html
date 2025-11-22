@@ -23,7 +23,11 @@
     <div class="app-shell">
       <header class="site-nav" aria-label="Navigation principale">
         <div class="brand">
-          <button type="button" class="brand-mark" aria-label="Logo Pinterest-like">
+          <button
+            type="button"
+            class="brand-mark"
+            aria-label="Logo MoodBoard"
+          >
             <i aria-hidden="true" class="fa-solid fa-layer-group"></i>
           </button>
           <div class="brand-text">
@@ -31,51 +35,99 @@
             <div class="muted" aria-hidden="true">Galerie d'inspiration</div>
           </div>
         </div>
-        
+
         <nav class="nav-links">
-          <a class="active" href="index.html"><i class="fa-solid fa-house" aria-hidden="true"></i><span>Accueil</span></a>
-          <a href="pages/collections.html"><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i><span>Collections</span></a>
-          <a href="pages/favoris.html"><i class="fa-regular fa-bookmark" aria-hidden="true"></i><span>Favoris</span></a>
-        </nav>
-        <div class="nav-actions">
-          <a class="icon-btn" href="pages/favoris.html" aria-label="Favoris">
-            <i class="fa-regular fa-bookmark" aria-hidden="true"></i>
-          </a>
-          <button type="button" class="icon-btn" aria-label="Notifications">
-            <i class="fa-regular fa-bell" aria-hidden="true"></i>
+          <a class="active" href="index.html"
+            ><i class="fa-solid fa-house" aria-hidden="true"></i
+            ><span>Accueil</span></a
+          >
+          <a href="pages/collections.html"
+            ><i class="fa-solid fa-table-cells-large" aria-hidden="true"></i
+            ><span>Collections</span></a
+          >
+          <a href="pages/favoris.html"
+            ><i class="fa-regular fa-bookmark" aria-hidden="true"></i
+            ><span>Favoris</span></a
+          ><div class="nav-actions">
+          
+          <button type="button" class="icon-btn" aria-label="Mode clair">
+            <i class="fa-regular fa-sun" aria-hidden="true"></i>
           </button>
           <div class="profile-avatar" aria-hidden="true">E</div>
         </div>
-        <button type="button" class="menu-toggle" aria-expanded="false" data-menu-toggle aria-label="Ouvrir le menu">
+        </nav>
+        
+        <button
+          type="button"
+          class="menu-toggle"
+          aria-expanded="false"
+          data-menu-toggle
+          aria-label="Ouvrir le menu"
+        >
           <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
       </header>
-
-      <form
-        id="search-form"
-        class="site-search"
-        role="search"
-        aria-label="Recherche"
-      >
-        <label class="sr-only" for="search-input">Rechercher des idees</label>
-        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-        <input
-          id="search-input"
-          type="search"
-          name="query"
-          placeholder="Rechercher des idees..."
-          aria-label="Rechercher des idees"
-        />
-      </form>
-
       <main>
+        <section class="">
+          <form
+            id="search-form"
+            class="site-search"
+            role="search"
+            aria-label="Recherche"
+          >
+            <label class="sr-only" for="search-input"
+              >Rechercher des idees</label
+            >
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input
+              id="search-input"
+              type="search"
+              name="query"
+              placeholder="Rechercher des idees..."
+              aria-label="Rechercher des idees"
+            />
+            <button type="submit" class="btn btn-search">Rechercher</button>
+          </form>
+          <div
+            class="quick-filters"
+            id="quick-filters"
+            aria-label="Suggestions rapides"
+          >
+            <button type="button" class="chip" data-quick-query="minimal">
+              Minimal
+            </button>
+            <button type="button" class="chip" data-quick-query="architecture">
+              Architecture
+            </button>
+            <button type="button" class="chip" data-quick-query="portrait">
+              Portrait
+            </button>
+            <button type="button" class="chip" data-quick-query="nature">
+              Nature
+            </button>
+            <button type="button" class="chip" data-quick-query="street">
+              Street
+            </button>
+          </div>
+        </section>
+
         <section id="resultats" aria-labelledby="resultats-title">
           <p id="result-status" class="muted"></p>
-          <div class="cards-grid" id="results-grid" aria-label="Resultats de recherche"></div>
+          <div
+            class="cards-grid"
+            id="results-grid"
+            aria-label="Resultats de recherche"
+          ></div>
         </section>
       </main>
     </div>
     <div class="menu-overlay" aria-hidden="true" id="menu-overlay"></div>
+    <div class="global-loader" aria-hidden="true">
+      <div class="loader-spinner" role="status" aria-label="Chargement">
+        <div></div>
+        <div></div>
+      </div>
+    </div>
 
     <script type="module" src="script.js"></script>
   </body>

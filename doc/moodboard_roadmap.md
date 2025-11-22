@@ -20,6 +20,13 @@ Projet réalisé dans le cadre du TP de Web Avancé (Master 2, UDBL), visant à 
 - Gestion claire des états vides (aucun résultat, aucune collection, aucune image dans une collection)
 - Adaptation mobile, tablette et desktop
 
+## Nouveautes v1.2
+- Grille des collections corrigee (plus d'affichage en colonne unique) et hauteur de page calee sur 100vh - navigation.
+- Lightbox centre l'image en respectant son format (portrait/paysage) avec contraintes max viewport.
+- Boutons actions (favoris/collections) masques par defaut et reveles au survol ou focus clavier.
+- Barre de recherche mobile forcee a 100% sans scroll horizontal parasite; overflow-x global desactive.
+- Synchronisation dynamique de la variable CSS `--nav-height` avec le header; badges followers retires des cartes.
+
 ## User stories (vanilla HTML/CSS/JS)
 - L'utilisateur saisit un mot-clé et obtient une grille d'images Unsplash (minimum 20 résultats par requête), avec loader et messages d'état.
 - L'utilisateur visualise une grille responsive qui conserve les ratios d'image sur tous les écrans.
@@ -89,7 +96,7 @@ git clone https://github.com/votre-nom/moodboard.git
 3. Enregistrer
 4. L'application sera disponible via :
 ```
-https://votre-nom.github.io/moodboard
+https://ek-moodboard.vercel.app/
 ```
 
 ## Fonctionnement global
@@ -110,11 +117,11 @@ https://votre-nom.github.io/moodboard
 - Fermeture via bouton, ESC ou clic sur le fond
 
 ## Améliorations futures (Roadmap)
-- Défilement infini (infinite scroll)
-- Mode sombre/clair dynamique
-- Collections avancées : multi-collection par image, vue détaillée des boards
-- Suggestions automatiques basées sur les images des collections
-- Authentification via Unsplash OAuth
+- Bouton "Charger plus" de secours si l'infinite scroll est bloqué (offline/lent).
+- Export/import des collections (JSON) et partage de board en lecture seule.
+- Filtres rapides supplémentaires (orientation, couleurs) côté client.
+- Optimisation perfs : déduplication de requêtes, gestion fine des loaders.
+- Tests d'intégration basiques (render de la grille, lightbox, persistance LocalStorage).
 
 ## Auteur
 Eric Kayembe (MoodBoard)  
@@ -126,4 +133,3 @@ Projet académique – libre d'utilisation à but éducatif.
 ## Remerciements
 - Unsplash pour son API ouverte et de haute qualité
 - UDBL & le cours de Web Avancé pour le cadre pédagogique
-

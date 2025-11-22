@@ -30,6 +30,9 @@ const els = {
   collectionModalSearch: null,
   collectionModalNew: null,
   collectionModalNewInput: null,
+  collectionDetailModal: null,
+  collectionDetailTitle: null,
+  collectionDetailGrid: null,
 };
 
 const fontsReady = document.fonts?.ready ?? Promise.resolve();
@@ -142,7 +145,7 @@ function renderCollections(sections) {
             ${section.items
               .map(
                 (item) => `
-                  <article class="collection-card">
+                  <article class="collection-card" data-collection-id="${item.id || item.name}">
                     <img src="${item.cover}" alt="${item.name}">
                     <div class="collection-card__overlay"></div>
                     <div class="collection-card__title">${item.name}</div>
@@ -210,6 +213,7 @@ function normalizeName(name) {
 function buildCollectionSections() {
   // Construit la section utilisateur pour la page Collections
   const userItems = state.collections.map((collection) => ({
+    id: collection.id,
     name: collection.name,
     cover: getCollectionCover(collection.name, collection.items),
   }));
@@ -332,6 +336,94 @@ function ensureCollectionModal() {
 function deleteCollection(collectionId) {
   state.collections = state.collections.filter((c) => c.id !== collectionId);
   storage.saveCollections(state.collections);
+}
+
+function ensureCollectionDetailModal() {
+  if (els.collectionDetailModal) return;
+  const wrapper = document.createElement("div");
+  wrapper.className = "collection-detail-modal";
+  wrapper.innerHTML = `
+    <div class="collection-modal__backdrop" data-col-detail-close></div>
+    <div class="collection-detail__panel" role="dialog" aria-modal="true">
+      <header class="collection-detail__header">
+        <div>
+          <h3 class="collection-detail__title" data-col-detail-title></h3>
+          <div class="muted" data-col-detail-count></div>
+        </div>
+        <button type="button" class="icon-btn" data-col-detail-close aria-label="Fermer">
+          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+      </header>
+      <div class="collection-detail__grid cards-grid" data-col-detail-grid></div>
+    </div>
+  `;
+  document.body.appendChild(wrapper);
+
+  els.collectionDetailModal = wrapper;
+  els.collectionDetailTitle = wrapper.querySelector("[data-col-detail-title]");
+  els.collectionDetailGrid = wrapper.querySelector("[data-col-detail-grid]");
+  els.collectionDetailCount = wrapper.querySelector("[data-col-detail-count]");
+
+  wrapper.addEventListener("click", (event) => {
+    if (event.target.closest("[data-col-detail-close]")) {
+      closeCollectionDetail();
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && wrapper.classList.contains("open")) {
+      closeCollectionDetail();
+    }
+  });
+}
+
+function renderCollectionDetail(collection) {
+  if (!collection || !els.collectionDetailGrid) return;
+  const items = collection.items || [];
+  if (!items.length) {
+    els.collectionDetailGrid.innerHTML = `<div class="collection-detail__empty muted">Aucune image dans cette collection.</div>`;
+    return;
+  }
+
+  els.collectionDetailGrid.innerHTML = items
+    .map(
+      (item) => `
+        <article class="card collection-detail-card">
+          <img src="${item.src}" alt="${item.alt}">
+          <div class="card-footer">
+            <div class="author">
+              <img class="avatar" src="${item.avatar}" alt="${item.author}">
+              <div class="meta">
+                <strong>${item.author}</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+  layoutAfterImages(els.collectionDetailGrid, ".collection-detail-card");
+}
+
+function openCollectionDetail(collectionId) {
+  ensureCollectionDetailModal();
+  const collection = state.collections.find((c) => c.id === collectionId);
+  if (!collection) return;
+
+  els.collectionDetailTitle.textContent = collection.name;
+  const count = collection.items.length;
+  if (els.collectionDetailCount) {
+    els.collectionDetailCount.textContent = `${count} image${count > 1 ? "s" : ""}`;
+  }
+  renderCollectionDetail(collection);
+  els.collectionDetailModal.classList.add("open");
+  document.body.classList.add("collection-modal-open");
+}
+
+function closeCollectionDetail() {
+  if (!els.collectionDetailModal) return;
+  els.collectionDetailModal.classList.remove("open");
+  document.body.classList.remove("collection-modal-open");
 }
 
 function renderCollectionModalList(filterTerm = "") {
@@ -567,6 +659,13 @@ function onFavoritesClick(event) {
   }
 }
 
+function onCollectionsClick(event) {
+  const card = event.target.closest("[data-collection-id]");
+  if (!card || !els.collectionList?.contains(card)) return;
+  const id = card.getAttribute("data-collection-id");
+  openCollectionDetail(id);
+}
+
 async function handleSearch(event) {
   // Soumission du formulaire de recherche Unsplash
   event.preventDefault();
@@ -616,6 +715,7 @@ async function init() {
   state.favorites = storage.loadFavorites();
   state.collections = storage.loadCollections();
   ensureCollectionModal();
+  ensureCollectionDetailModal();
   renderCollectionModalList();
 
   const isHomePage = Boolean(els.resultsGrid);
@@ -629,6 +729,9 @@ async function init() {
   }
   if (isHomePage) {
     els.resultsGrid.addEventListener("click", onResultsClick);
+  }
+  if (els.collectionList) {
+    els.collectionList.addEventListener("click", onCollectionsClick);
   }
   if (els.searchForm && isHomePage) {
     els.searchForm.addEventListener("submit", handleSearch);

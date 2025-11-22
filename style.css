@@ -483,6 +483,7 @@ section header h2 {
   isolation: isolate;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  cursor: pointer;
 }
 
 .collection-card img {
@@ -637,6 +638,99 @@ body.collection-modal-open {
 .collection-modal__empty {
   padding: 20px 12px;
   color: var(--muted);
+}
+
+.collection-option__delete {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.collection-option__delete:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.collection-option__info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.collection-option__meta {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+}
+
+.collection-option__meta strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collection detail modal */
+.collection-detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.collection-detail-modal.open {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.collection-detail__panel {
+  position: fixed;
+  inset: 10%;
+  max-width: 1100px;
+  margin: auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+  z-index: 1;
+  padding: 16px 16px 18px;
+}
+
+.collection-detail__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.collection-detail__title {
+  font-size: 1.2rem;
+}
+
+.collection-detail__grid {
+  margin-top: 12px;
+  overflow: auto;
+  max-height: calc(100vh - 180px);
+}
+
+.collection-detail__grid .card {
+  background: #fff;
+}
+
+.collection-detail__empty {
+  padding: 16px;
 }
 
 .collection-option__delete {

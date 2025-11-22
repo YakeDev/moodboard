@@ -582,6 +582,7 @@ function waitForImages(container) {
 function applyMasonry(container, selector) {
   // Calcule dynamiquement la hauteur de row-span pour un effet masonry fluide
   if (!container) return;
+  if (container.clientWidth < 640) return; // evite le masonry sur mobile et petit ecran
   const styles = getComputedStyle(container);
   const rowHeight = parseFloat(styles.getPropertyValue("grid-auto-rows")) || 10;
   const gap = parseFloat(styles.getPropertyValue("gap")) || 0;
@@ -605,6 +606,9 @@ function applyMasonry(container, selector) {
 function layoutAfterImages(container, selector) {
   // Recalcule la grille apres chargement des images et des fontes
   if (!container) return;
+  const isSmall = container.clientWidth < 640;
+  container.classList.toggle("no-masonry", isSmall);
+  if (isSmall) return;
   Promise.all([waitForImages(container), fontsReady]).then(() => applyMasonry(container, selector));
 }
 

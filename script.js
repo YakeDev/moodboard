@@ -142,7 +142,8 @@ function renderResults(items) {
     })
     .join("");
 
-  layoutAfterImages(els.resultsGrid, ".card");
+  applyMasonry();
+  observeImages();
 }
 
 function renderSkeletonResults(count = 8) {
@@ -192,6 +193,9 @@ function renderCollections(sections) {
       `
     )
     .join("");
+
+  applyMasonry();
+  observeImages();
 }
 
 function renderFavorites(favorites) {
@@ -223,12 +227,17 @@ function renderFavorites(favorites) {
     )
     .join("");
 
-  layoutAfterImages(els.favoriteList, ".favorite-card");
+  applyMasonry();
+  observeImages();
 }
 
 function updateStatus(text) {
   if (els.resultStatus) {
     els.resultStatus.textContent = text;
+    const hasText = Boolean(text);
+    const isError = (text || "").toLowerCase().includes("erreur");
+    els.resultStatus.classList.toggle("status-hidden", !hasText);
+    els.resultStatus.classList.toggle("status-error", isError);
   }
 }
 
@@ -457,7 +466,8 @@ function renderCollectionDetail(collection) {
       `
     )
     .join("");
-  layoutAfterImages(els.collectionDetailGrid, ".collection-detail-card");
+  applyMasonry();
+  observeImages();
 }
 
 function openCollectionDetail(collectionId) {
@@ -662,37 +672,35 @@ function waitForImages(container) {
   return Promise.all(promises);
 }
 
-function applyMasonry(container, selector) {
-  // Calcule dynamiquement la hauteur de row-span pour un effet masonry fluide
-  if (!container) return;
-  if (container.clientWidth < 640) return; // evite le masonry sur mobile et petit ecran
-  const styles = getComputedStyle(container);
-  const rowHeight = parseFloat(styles.getPropertyValue("grid-auto-rows")) || 10;
-  const gap = parseFloat(styles.getPropertyValue("gap")) || 0;
-
-  const measure = () => {
-    container.querySelectorAll(selector).forEach((card) => {
-      card.style.gridRowEnd = "span 1";
-      const cardHeight = card.getBoundingClientRect().height;
-      const span = Math.ceil((cardHeight + gap) / (rowHeight + gap));
-      card.style.gridRowEnd = `span ${span}`;
+function applyMasonry(selector = ".cards-grid, .favorite-list, .collection-list") {
+  const grids = document.querySelectorAll(selector);
+  grids.forEach((grid) => {
+    const styles = getComputedStyle(grid);
+    const rowHeight = parseFloat(styles.getPropertyValue("grid-auto-rows")) || 10;
+    const gap = parseFloat(styles.getPropertyValue("gap")) || 0;
+    const items = grid.querySelectorAll(".card, .favorite-card, .collection-card");
+    items.forEach((item) => {
+      item.style.gridRowEnd = "span 1";
+      const height = item.getBoundingClientRect().height;
+      const span = Math.ceil((height + gap) / (rowHeight + gap));
+      item.style.gridRowEnd = `span ${Math.max(span, 1)}`;
     });
-  };
-
-  if (typeof requestAnimationFrame === "function") {
-    requestAnimationFrame(measure);
-  } else {
-    measure();
-  }
+  });
 }
 
-function layoutAfterImages(container, selector) {
-  // Recalcule la grille apres chargement des images et des fontes
-  if (!container) return;
-  const isSmall = container.clientWidth < 640;
-  container.classList.toggle("no-masonry", isSmall);
-  if (isSmall) return;
-  Promise.all([waitForImages(container), fontsReady]).then(() => applyMasonry(container, selector));
+function observeImages(selector = ".cards-grid, .favorite-list, .collection-list") {
+  const grids = document.querySelectorAll(selector);
+  grids.forEach((grid) => {
+    grid.querySelectorAll("img").forEach((img) => {
+      const onLoad = () => applyMasonry(selector);
+      if (img.complete && img.naturalHeight !== 0) {
+        onLoad();
+      } else {
+        img.addEventListener("load", onLoad, { once: true });
+        img.addEventListener("error", onLoad, { once: true });
+      }
+    });
+  });
 }
 
 function updateResultButtons() {
@@ -914,14 +922,16 @@ async function loadResults(query) {
     updateStatus(
       term
         ? items.length
-          ? `Resultats pour "${term}" (premieres ${Math.min(items.length, PER_PAGE)} images).`
-          : `Aucun resultat pour "${term}".`
+          ? ""
+          : ""
         : ""
     );
   } catch (error) {
     console.error(error);
     updateStatus("Erreur lors du chargement des images Unsplash.");
-    renderResults([]);
+    if (els.resultsGrid) {
+      els.resultsGrid.innerHTML = "";
+    }
   } finally {
     document.body.classList.remove("is-loading");
   }
@@ -960,8 +970,7 @@ async function init() {
   bindMenu();
 
   window.addEventListener("resize", () => {
-    layoutAfterImages(els.resultsGrid, ".card");
-    layoutAfterImages(els.favoriteList, ".favorite-card");
+    applyMasonry();
   });
 
   if (isHomePage) {

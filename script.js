@@ -4,6 +4,9 @@ const DEFAULT_QUERY = "";
 const PER_PAGE = 20;
 const FAVORITES_KEY = "moodboard:favorites";
 const COLLECTIONS_KEY = "moodboard:collections";
+const DEFAULT_COLLECTION_ID = "collection-default";
+const DEFAULT_COLLECTION_NAME = "Par défaut";
+const THEME_KEY = "moodboard:theme";
 const clientApiKeyPromise = (async () => {
   try {
     const mod = await import("./config.js");
@@ -20,6 +23,9 @@ const state = {
   collections: [],
   collectionSections: [],
   favorites: [],
+  page: 1,
+  hasMore: true,
+  isLoading: false,
 };
 
 // References DOM
@@ -42,6 +48,7 @@ const els = {
   collectionDetailModal: null,
   collectionDetailTitle: null,
   collectionDetailGrid: null,
+  themeToggle: document.querySelector("[data-theme-toggle]"),
 };
 
 const fontsReady = document.fonts?.ready ?? Promise.resolve();
@@ -253,6 +260,42 @@ function normalizeName(name) {
   return name.trim();
 }
 
+function normalizeKey(name) {
+  return normalizeName(name).toLowerCase();
+}
+
+function isDefaultCollection(collection) {
+  return collection?.id === DEFAULT_COLLECTION_ID;
+}
+
+function getInitialTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "dark" || saved === "light") return saved;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function updateThemeToggle(theme) {
+  if (!els.themeToggle) return;
+  const icon = els.themeToggle.querySelector("[data-theme-icon]");
+  if (icon) {
+    icon.className = theme === "dark" ? "fa-regular fa-moon" : "fa-regular fa-sun";
+  }
+  els.themeToggle.setAttribute("aria-label", theme === "dark" ? "Mode clair" : "Mode sombre");
+}
+
+function applyTheme(theme) {
+  const mode = theme === "dark" ? "dark" : "light";
+  document.body.classList.toggle("theme-dark", mode === "dark");
+  document.body.dataset.theme = mode;
+  localStorage.setItem(THEME_KEY, mode);
+  updateThemeToggle(mode);
+}
+
+function toggleTheme() {
+  const next = document.body.classList.contains("theme-dark") ? "light" : "dark";
+  applyTheme(next);
+}
+
 function buildCollectionSections() {
   // Construit la section utilisateur pour la page Collections
   const userItems = state.collections.map((collection) => ({
@@ -278,7 +321,8 @@ function addPhotoToCollection(collectionName, photo) {
   const name = normalizeName(collectionName);
   if (!name) return;
 
-  let collection = state.collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  const key = normalizeKey(name);
+  let collection = state.collections.find((c) => normalizeKey(c.name) === key);
 
   if (!collection) {
     collection = { id: `col-${Date.now()}`, name, items: [] };
@@ -299,7 +343,7 @@ function promptCollectionCreation() {
   const input = window.prompt("Nom de la collection :", "");
   const name = normalizeName(input || "");
   if (!name) return;
-  const exists = state.collections.some((c) => c.name.toLowerCase() === name.toLowerCase());
+  const exists = state.collections.some((c) => normalizeKey(c.name) === normalizeKey(name));
   if (exists) return;
   const collection = { id: `col-${Date.now()}`, name, items: [] };
   state.collections.push(collection);
@@ -358,6 +402,21 @@ function ensureCollectionModal() {
         renderCollections(buildCollectionSections());
         return;
       }
+      const renameBtn = event.target.closest("[data-col-rename]");
+      if (renameBtn) {
+        const id = renameBtn.getAttribute("data-col-rename");
+        const collection = state.collections.find((c) => c.id === id);
+        if (collection && !isDefaultCollection(collection)) {
+          const input = window.prompt("Nouveau nom de la collection :", collection.name);
+          const name = normalizeName(input || "");
+          if (name) {
+            renameCollection(id, name);
+            renderCollectionModalList(els.collectionModalSearch?.value || "");
+            renderCollections(buildCollectionSections());
+          }
+        }
+        return;
+      }
       const target = event.target.closest("[data-col-select]");
       if (!target) return;
       const id = target.getAttribute("data-col-select");
@@ -390,7 +449,24 @@ function ensureCollectionModal() {
 }
 
 function deleteCollection(collectionId) {
-  state.collections = state.collections.filter((c) => c.id !== collectionId);
+  state.collections = state.collections.filter((c) => {
+    if (c.id === collectionId && isDefaultCollection(c)) {
+      return true; // ignore deletion of default
+    }
+    return c.id !== collectionId;
+  });
+  storage.saveCollections(state.collections);
+}
+
+function renameCollection(collectionId, newName) {
+  const name = normalizeName(newName || "");
+  if (!name) return;
+  const key = normalizeKey(name);
+  const exists = state.collections.some((c) => c.id !== collectionId && normalizeKey(c.name) === key);
+  if (exists) return;
+  const collection = state.collections.find((c) => c.id === collectionId);
+  if (!collection || isDefaultCollection(collection)) return;
+  collection.name = name;
   storage.saveCollections(state.collections);
 }
 
@@ -517,9 +593,18 @@ function renderCollectionModalList(filterTerm = "") {
               <span class="muted">${label}</span>
             </div>
           </div>
-          <button type="button" class="collection-option__delete" data-col-delete="${collection.id}" aria-label="Supprimer la collection">
-            <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-          </button>
+          <div class="collection-option__actions">
+            ${
+              isDefaultCollection(collection)
+                ? ""
+                : `<button type="button" class="collection-option__rename" data-col-rename="${collection.id}" aria-label="Renommer la collection">
+                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                   </button>
+                   <button type="button" class="collection-option__delete" data-col-delete="${collection.id}" aria-label="Supprimer la collection">
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                   </button>`
+            }
+          </div>
         </div>
       `;
     })
@@ -610,11 +695,12 @@ function mapUnsplashList(list, isSearch) {
   }));
 }
 
-async function fetchPhotos(query) {
+async function fetchPhotos(query, page = 1) {
   const term = (query || "").trim();
   const isSearch = Boolean(term);
   const params = new URLSearchParams({ per_page: String(PER_PAGE) });
   if (isSearch) params.set("query", term);
+  params.set("page", String(page));
 
   // Tentative via proxy Vercel
   try {
@@ -903,6 +989,10 @@ async function loadResults(query) {
 
   const term = (query || "").trim();
   state.query = term;
+  state.page = 1;
+  state.hasMore = true;
+  state.results = [];
+  state.isLoading = false;
 
   if (!term) {
     updateStatus("Chargement des inspirations...");
@@ -914,26 +1004,49 @@ async function loadResults(query) {
   renderSkeletonResults();
 
   try {
-    const items = await fetchPhotos(term);
-    state.results = items;
-    renderResults(items);
-    updateResultButtons();
-
-    updateStatus(
-      term
-        ? items.length
-          ? ""
-          : ""
-        : ""
-    );
-  } catch (error) {
-    console.error(error);
-    updateStatus("Erreur lors du chargement des images Unsplash.");
-    if (els.resultsGrid) {
-      els.resultsGrid.innerHTML = "";
-    }
+    await loadNextPage(true);
   } finally {
     document.body.classList.remove("is-loading");
+  }
+}
+
+async function loadNextPage(reset = false) {
+  if (!els.resultsGrid) return;
+  if (state.isLoading) return;
+  if (!state.hasMore && !reset) return;
+
+  const nextPage = reset ? 1 : state.page + 1;
+  state.isLoading = true;
+
+  try {
+    const items = await fetchPhotos(state.query, nextPage);
+    if (reset) {
+      state.results = items;
+    } else {
+      state.results = [...state.results, ...items];
+    }
+    state.page = nextPage;
+    state.hasMore = items.length >= PER_PAGE;
+
+    if (!state.results.length) {
+      const message = state.query
+        ? `Aucun résultat pour "${state.query}".`
+        : "Aucun résultat trouvé.";
+      updateStatus(message);
+      if (els.resultsGrid) {
+        els.resultsGrid.innerHTML = "";
+      }
+    } else {
+      updateStatus("");
+      renderResults(state.results);
+      updateResultButtons();
+    }
+  } catch (error) {
+    console.error(error);
+    state.hasMore = false;
+    updateStatus("Erreur lors du chargement des images Unsplash.");
+  } finally {
+    state.isLoading = false;
   }
 }
 
@@ -941,6 +1054,13 @@ async function init() {
   // Bootstrapping : hydrate l'etat, bind les evenements et charge les donnees
   state.favorites = storage.loadFavorites();
   state.collections = storage.loadCollections();
+  const hasDefault = state.collections.some(
+    (c) => isDefaultCollection(c) || normalizeKey(c.name) === normalizeKey(DEFAULT_COLLECTION_NAME)
+  );
+  if (!hasDefault) {
+    state.collections.unshift({ id: DEFAULT_COLLECTION_ID, name: DEFAULT_COLLECTION_NAME, items: [] });
+    storage.saveCollections(state.collections);
+  }
   ensureCollectionModal();
   ensureCollectionDetailModal();
   renderCollectionModalList();
@@ -960,11 +1080,29 @@ async function init() {
       els.quickFilters.addEventListener("click", handleQuickFilter);
     }
   }
+  if (els.themeToggle) {
+    const initialTheme = getInitialTheme();
+    applyTheme(initialTheme);
+    els.themeToggle.addEventListener("click", toggleTheme);
+  } else {
+    applyTheme(getInitialTheme());
+  }
   if (els.collectionList) {
     els.collectionList.addEventListener("click", onCollectionsClick);
   }
   if (els.searchForm && isHomePage) {
     els.searchForm.addEventListener("submit", handleSearch);
+  }
+  if (isHomePage) {
+    const onScroll = () => {
+      const nearBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400;
+      if (nearBottom) {
+        loadNextPage();
+      }
+    };
+    window.addEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll);
   }
 
   bindMenu();

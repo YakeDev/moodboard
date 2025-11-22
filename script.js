@@ -1,9 +1,17 @@
-﻿import { API_KEY } from "./config.js";
+// API key handled server-side (Vercel proxy)
 
 const DEFAULT_QUERY = "";
 const PER_PAGE = 20;
 const FAVORITES_KEY = "moodboard:favorites";
 const COLLECTIONS_KEY = "moodboard:collections";
+const clientApiKeyPromise = (async () => {
+  try {
+    const mod = await import("./config.js");
+    return mod.API_KEY || null;
+  } catch (error) {
+    return null;
+  }
+})();
 
 // Etat applicatif centralise
 const state = {
@@ -576,33 +584,9 @@ function bindMenu() {
   }
 }
 
-async function fetchPhotos(query) {
-  const term = (query || "").trim();
-  const isSearch = Boolean(term);
-  const url = isSearch
-    ? new URL("https://api.unsplash.com/search/photos")
-    : new URL("https://api.unsplash.com/photos");
-
-  if (isSearch) {
-    url.searchParams.set("query", term);
-  }
-
-  url.searchParams.set("per_page", PER_PAGE);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Client-ID ${API_KEY}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Erreur API Unsplash (${response.status})`);
-  }
-
-  const data = await response.json();
-  const list = isSearch ? data.results || [] : data || [];
-
-  return list.map((photo) => ({
+function mapUnsplashList(list, isSearch) {
+  const items = isSearch ? list.results || [] : list || [];
+  return items.map((photo) => ({
     id: photo.id,
     src: photo.urls?.regular || photo.urls?.small,
     alt: photo.alt_description || photo.description || "Visuel Unsplash",
@@ -614,6 +598,54 @@ async function fetchPhotos(query) {
     download: photo.links?.download || photo.urls?.full || photo.urls?.regular,
     downloadLocation: photo.links?.download_location,
   }));
+}
+
+async function fetchPhotos(query) {
+  const term = (query || "").trim();
+  const isSearch = Boolean(term);
+  const params = new URLSearchParams({ per_page: String(PER_PAGE) });
+  if (isSearch) params.set("query", term);
+
+  // Tentative via proxy Vercel
+  try {
+    const proxyUrl = new URL("/api/unsplash", window.location.origin);
+    proxyUrl.search = params.toString();
+    const response = await fetch(proxyUrl.toString());
+    if (!response.ok) {
+      if (response.status !== 404) {
+        throw new Error(`Erreur API Unsplash (${response.status})`);
+      }
+    } else {
+      const data = await response.json();
+      return mapUnsplashList(data, isSearch);
+    }
+  } catch (error) {
+    console.warn("Proxy indisponible, fallback vers Unsplash direct", error);
+  }
+
+  // Fallback direct pour le dev local (requiert config.js non versionné)
+  const clientKey = await clientApiKeyPromise;
+  if (!clientKey) {
+    throw new Error("Proxy Vercel indisponible et clé locale absente.");
+  }
+
+  const directUrl = new URL(
+    isSearch ? "https://api.unsplash.com/search/photos" : "https://api.unsplash.com/photos"
+  );
+  directUrl.search = params.toString();
+
+  const fallback = await fetch(directUrl.toString(), {
+    headers: {
+      Authorization: `Client-ID ${clientKey}`,
+    },
+  });
+
+  if (!fallback.ok) {
+    throw new Error(`Erreur API Unsplash (${fallback.status})`);
+  }
+
+  const data = await fallback.json();
+  return mapUnsplashList(data, isSearch);
 }
 
 function waitForImages(container) {
@@ -679,17 +711,6 @@ function updateResultButtons() {
 
 async function triggerDownload(photo) {
   if (!photo) return;
-  try {
-    if (photo.downloadLocation) {
-      await fetch(photo.downloadLocation, {
-        headers: {
-          Authorization: `Client-ID ${API_KEY}`,
-        },
-      });
-    }
-  } catch (error) {
-    console.warn("Impossible de tracer le téléchargement", error);
-  }
 
   const link = photo.download || photo.src;
   if (link) {
@@ -878,7 +899,7 @@ async function loadResults(query) {
   if (!term) {
     updateStatus("Chargement des inspirations...");
   } else {
-    updateStatus(`Chargement des images pour « ${term} » ...`);
+    updateStatus(`Chargement des images pour "${term}" ...`);
   }
 
   document.body.classList.add("is-loading");
@@ -893,8 +914,8 @@ async function loadResults(query) {
     updateStatus(
       term
         ? items.length
-          ? `Résultats pour « ${term} » (premières ${Math.min(items.length, PER_PAGE)} images).`
-          : `Aucun résultat pour « ${term} ».`
+          ? `Resultats pour "${term}" (premieres ${Math.min(items.length, PER_PAGE)} images).`
+          : `Aucun resultat pour "${term}".`
         : ""
     );
   } catch (error) {

@@ -3,89 +3,18 @@
 const DEFAULT_QUERY = "";
 const PER_PAGE = 20;
 const FAVORITES_KEY = "moodboard:favorites";
+const COLLECTIONS_KEY = "moodboard:collections";
 
+// Etat applicatif centralise
 const state = {
   query: DEFAULT_QUERY,
   results: [],
-  collectionSections: [
-    {
-      title: "Id\u00e9es pour vous",
-      items: [
-        {
-          name: "Pattern art",
-          cover: "https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Vintage recipe",
-          cover: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Pattern drawing",
-          cover: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Vintage decor",
-          cover: "https://images.unsplash.com/photo-1458829267686-67c9c286b0f6?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Retro futurism",
-          cover: "https://images.unsplash.com/photo-1522050212171-61b01dd24579?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Cute dessert",
-          cover: "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Poems",
-          cover: "https://images.unsplash.com/photo-1471109880861-75cec67f8b68?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Journaling",
-          cover: "https://images.unsplash.com/photo-1473186505569-9c61870c11f9?auto=format&fit=crop&w=1200&q=80",
-        },
-      ],
-    },
-    {
-      title: "Populaire sur MoodBoard",
-      items: [
-        {
-          name: "Dark wallpaper",
-          cover: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Birthday cake",
-          cover: "https://images.unsplash.com/photo-1505253758473-96b7015fcd40?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Caracal",
-          cover: "https://images.unsplash.com/photo-1517423440428-a5a00ad493e8?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Architecture",
-          cover: "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Fashion",
-          cover: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Traveling",
-          cover: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Arts",
-          cover: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=1200&q=80",
-        },
-        {
-          name: "Film photo",
-          cover: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80",
-        },
-      ],
-    },
-  ],
+  collections: [],
+  collectionSections: [],
   favorites: [],
 };
 
+// References DOM
 const els = {
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
@@ -96,10 +25,17 @@ const els = {
   menuToggle: document.querySelector("[data-menu-toggle]"),
   sidebar: document.getElementById("sidebar"),
   overlay: document.getElementById("menu-overlay"),
+  collectionModal: null,
+  collectionModalList: null,
+  collectionModalSearch: null,
+  collectionModalNew: null,
+  collectionModalNewInput: null,
 };
 
 const fontsReady = document.fonts?.ready ?? Promise.resolve();
+let activeCollectionPhoto = null;
 
+// Gestion centralisee du stockage local
 const storage = {
   loadFavorites() {
     try {
@@ -119,6 +55,24 @@ const storage = {
       console.warn("Impossible de sauvegarder les favoris", error);
     }
   },
+  loadCollections() {
+    try {
+      const raw = localStorage.getItem(COLLECTIONS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn("Impossible de lire les collections", error);
+      return [];
+    }
+  },
+  saveCollections(collections) {
+    try {
+      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+    } catch (error) {
+      console.warn("Impossible de sauvegarder les collections", error);
+    }
+  },
 };
 
 function isFavorite(id) {
@@ -126,6 +80,7 @@ function isFavorite(id) {
 }
 
 function toggleFavorite(photo) {
+  // Bascule un visuel dans ou hors des favoris
   if (!photo || !photo.id) return;
   const exists = isFavorite(photo.id);
   state.favorites = exists
@@ -154,7 +109,7 @@ function renderResults(items) {
             <button type="button" class="icon-btn fav-btn${active}" data-fav-toggle="${item.id}" aria-pressed="${Boolean(active)}" aria-label="Ajouter aux favoris" title="Ajouter aux favoris">
               <i class="fa-regular fa-heart" aria-hidden="true"></i>
             </button>
-            <button type="button" class="icon-btn" aria-label="Ajouter à une collection" title="Ajouter à une collection"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
+            <button type="button" class="icon-btn" data-collection-add="${item.id}" aria-label="Ajouter a une collection" title="Ajouter a une collection"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
           </div>
           <div class="card-footer">
             <div class="author">
@@ -177,11 +132,12 @@ function renderResults(items) {
 function renderCollections(sections) {
   if (!els.collectionList) return;
 
+  // Injecte les sections (vos collections + suggestions)
   els.collectionList.innerHTML = sections
     .map(
       (section) => `
         <div class="collection-section">
-          <h3>${section.title}</h3>
+          ${section.title ? `<h3>${section.title}</h3>` : ""}
           <div class="collection-grid">
             ${section.items
               .map(
@@ -237,6 +193,192 @@ function updateStatus(text) {
   if (els.resultStatus) {
     els.resultStatus.textContent = text;
   }
+}
+
+function getCollectionCover(name, items = []) {
+  // Utilise la premiere image de la collection ou un avatar genere pour l'affichage
+  const existingCover = items[0]?.src;
+  if (existingCover) return existingCover;
+  const seed = encodeURIComponent(name || "collection");
+  return `https://source.boringavatars.com/beam/400/${seed}?colors=0f172a,111827,1f2937,111827,0f172a`;
+}
+
+function normalizeName(name) {
+  return name.trim();
+}
+
+function buildCollectionSections() {
+  // Construit la section utilisateur pour la page Collections
+  const userItems = state.collections.map((collection) => ({
+    name: collection.name,
+    cover: getCollectionCover(collection.name, collection.items),
+  }));
+
+  const userSection = userItems.length
+    ? [
+        {
+          title: "",
+          items: userItems,
+        },
+      ]
+    : [];
+
+  return [...userSection, ...state.collectionSections];
+}
+
+function addPhotoToCollection(collectionName, photo) {
+  // Cree si besoin la collection et y ajoute le visuel (sans doublon)
+  const name = normalizeName(collectionName);
+  if (!name) return;
+
+  let collection = state.collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
+
+  if (!collection) {
+    collection = { id: `col-${Date.now()}`, name, items: [] };
+    state.collections.push(collection);
+  }
+
+  const exists = collection.items.some((item) => item.id === photo.id);
+  if (!exists) {
+    collection.items.push(photo);
+  }
+
+  storage.saveCollections(state.collections);
+  renderCollections(buildCollectionSections());
+  renderCollectionModalList(els.collectionModalSearch?.value || "");
+}
+
+function ensureCollectionModal() {
+  // Instancie le menu contextuel de selection/creation de collection (lazy)
+  if (els.collectionModal) return;
+  const wrapper = document.createElement("div");
+  wrapper.className = "collection-modal";
+  wrapper.innerHTML = `
+    <div class="collection-modal__backdrop" data-col-modal-close></div>
+    <div class="collection-modal__panel" role="dialog" aria-modal="true" aria-labelledby="collection-modal-title">
+      <h3 id="collection-modal-title" class="sr-only">Ajouter a une collection</h3>
+      <div class="collection-modal__search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" placeholder="Trouver une collection" aria-label="Trouver une collection" data-col-modal-search>
+      </div>
+      <div class="collection-modal__list" data-col-modal-list></div>
+      <form class="collection-modal__new" data-col-modal-new>
+        <input type="text" placeholder="Nom de la nouvelle collection" aria-label="Nom de la nouvelle collection" data-col-modal-new-input>
+        <button type="submit" class="btn">Créer</button>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(wrapper);
+
+  els.collectionModal = wrapper;
+  els.collectionModalList = wrapper.querySelector("[data-col-modal-list]");
+  els.collectionModalSearch = wrapper.querySelector("[data-col-modal-search]");
+  els.collectionModalNew = wrapper.querySelector("[data-col-modal-new]");
+  els.collectionModalNewInput = wrapper.querySelector("[data-col-modal-new-input]");
+
+  wrapper.addEventListener("click", (event) => {
+    if (event.target.closest("[data-col-modal-close]")) {
+      closeCollectionModal();
+    }
+  });
+
+  if (els.collectionModalSearch) {
+    els.collectionModalSearch.addEventListener("input", (event) => {
+      renderCollectionModalList(event.target.value || "");
+    });
+  }
+
+  if (els.collectionModalList) {
+    els.collectionModalList.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-col-select]");
+      if (!target) return;
+      const id = target.getAttribute("data-col-select");
+      const collection = state.collections.find((c) => c.id === id);
+      if (collection && activeCollectionPhoto) {
+        addPhotoToCollection(collection.name, activeCollectionPhoto);
+        closeCollectionModal();
+      }
+    });
+  }
+
+  if (els.collectionModalNew) {
+    els.collectionModalNew.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = normalizeName(els.collectionModalNewInput?.value || els.collectionModalSearch?.value || "");
+      if (!name || !activeCollectionPhoto) return;
+      addPhotoToCollection(name, activeCollectionPhoto);
+      if (els.collectionModalNewInput) {
+        els.collectionModalNewInput.value = "";
+      }
+      closeCollectionModal();
+    });
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && wrapper.classList.contains("open")) {
+      closeCollectionModal();
+    }
+  });
+}
+
+function renderCollectionModalList(filterTerm = "") {
+  if (!els.collectionModalList) return;
+  const term = (filterTerm || "").toLowerCase();
+  const list = state.collections.filter((collection) => collection.name.toLowerCase().includes(term));
+
+  if (!list.length) {
+    els.collectionModalList.innerHTML = `<div class="collection-modal__empty">Aucune collection.</div>`;
+    return;
+  }
+
+  els.collectionModalList.innerHTML = list
+    .map((collection) => {
+      const cover = getCollectionCover(collection.name, collection.items);
+      const count = collection.items.length;
+      const label = `${count} image${count > 1 ? "s" : ""}`;
+      return `
+        <button type="button" class="collection-option" data-col-select="${collection.id}">
+          <img src="${cover}" alt="" aria-hidden="true">
+          <div class="collection-option__meta">
+            <strong>${collection.name}</strong>
+            <span class="muted">${label}</span>
+          </div>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function openCollectionModal(photo) {
+  // Ouvre le menu contextuel et prepare la liste filtrable
+  ensureCollectionModal();
+  activeCollectionPhoto = photo;
+  els.collectionModal?.classList.add("open");
+  document.body.classList.add("collection-modal-open");
+  renderCollectionModalList(els.collectionModalSearch?.value || "");
+  if (els.collectionModalSearch) {
+    els.collectionModalSearch.focus();
+    els.collectionModalSearch.select();
+  }
+}
+
+function closeCollectionModal() {
+  // Ferme le menu contextuel des collections
+  if (!els.collectionModal) return;
+  els.collectionModal.classList.remove("open");
+  document.body.classList.remove("collection-modal-open");
+  activeCollectionPhoto = null;
+}
+
+function promptCollectionName(photo) {
+  const existingNames = state.collections.map((c) => c.name).join(", ") || "Aucune";
+  const input = window.prompt(
+    `Ajouter "${photo.alt}" \u00e0 une collection.\nCollections existantes: ${existingNames}\nNom de la collection :`,
+    state.collections[0]?.name || ""
+  );
+  const name = (input || "").trim();
+  if (!name) return;
+  addPhotoToCollection(name, photo);
 }
 
 function toggleMenu(force) {
@@ -295,6 +437,7 @@ async function fetchPhotos(query) {
 }
 
 function waitForImages(container) {
+  // Renvoie une promesse resolue quand toutes les images d'un conteneur sont chargees
   if (!container) return Promise.resolve();
   const images = Array.from(container.querySelectorAll("img"));
   const promises = images.map((img) => {
@@ -308,6 +451,7 @@ function waitForImages(container) {
 }
 
 function applyMasonry(container, selector) {
+  // Calcule dynamiquement la hauteur de row-span pour un effet masonry fluide
   if (!container) return;
   const styles = getComputedStyle(container);
   const rowHeight = parseFloat(styles.getPropertyValue("grid-auto-rows")) || 10;
@@ -330,11 +474,13 @@ function applyMasonry(container, selector) {
 }
 
 function layoutAfterImages(container, selector) {
+  // Recalcule la grille apres chargement des images et des fontes
   if (!container) return;
   Promise.all([waitForImages(container), fontsReady]).then(() => applyMasonry(container, selector));
 }
 
 function updateResultButtons() {
+  // Synchronise l'etat des boutons favoris en fonction du store
   if (!els.resultsGrid) return;
 
   els.resultsGrid.querySelectorAll("[data-fav-toggle]").forEach((btn) => {
@@ -348,18 +494,31 @@ function updateResultButtons() {
 }
 
 function onResultsClick(event) {
-  const target = event.target.closest("[data-fav-toggle]");
+  // Delegation des clics sur favoris et ajout en collection
+  const target = event.target.closest("[data-fav-toggle], [data-collection-add]");
   if (!target || !els.resultsGrid?.contains(target)) return;
 
-  const id = target.getAttribute("data-fav-toggle");
-  const photo = state.results.find((item) => item.id === id);
+  const favId = target.getAttribute("data-fav-toggle");
+  const collectionId = target.getAttribute("data-collection-add");
 
-  if (photo) {
-    toggleFavorite(photo);
+  if (favId) {
+    const photo = state.results.find((item) => item.id === favId);
+    if (photo) {
+      toggleFavorite(photo);
+    }
+    return;
+  }
+
+  if (collectionId) {
+    const photo = state.results.find((item) => item.id === collectionId);
+    if (photo) {
+      openCollectionModal(photo);
+    }
   }
 }
 
 function onFavoritesClick(event) {
+  // Retrait d'un favori depuis la page dediee
   const target = event.target.closest("[data-fav-toggle]");
   if (!target || !els.favoriteList?.contains(target)) return;
 
@@ -372,12 +531,14 @@ function onFavoritesClick(event) {
 }
 
 async function handleSearch(event) {
+  // Soumission du formulaire de recherche Unsplash
   event.preventDefault();
   const query = els.searchInput?.value || "";
   await loadResults(query);
 }
 
 async function loadResults(query) {
+  // Recupere et affiche les images (page d'accueil)
   if (!els.resultsGrid) return;
 
   const term = (query || "").trim();
@@ -414,12 +575,16 @@ async function loadResults(query) {
 }
 
 async function init() {
+  // Bootstrapping : hydrate l'etat, bind les evenements et charge les donnees
   state.favorites = storage.loadFavorites();
+  state.collections = storage.loadCollections();
+  ensureCollectionModal();
+  renderCollectionModalList();
 
   const isHomePage = Boolean(els.resultsGrid);
   const hasFavoritesSection = Boolean(els.favoriteList);
 
-  renderCollections(state.collectionSections);
+  renderCollections(buildCollectionSections());
   renderFavorites(state.favorites);
 
   if (hasFavoritesSection) {

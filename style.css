@@ -109,12 +109,13 @@ aside {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 1.5rem;
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50px;
   background: #ef4444;
   display: grid;
   place-items: center;
@@ -126,7 +127,8 @@ aside {
 
 .brand-text {
   display: grid;
-  gap: 4px;
+  gap: 2px;
+  font-size: 1.25rem;
 }
 
 .nav ul {
@@ -465,16 +467,19 @@ section header h2 {
 
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 14px;
 }
 
 .collection-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   overflow: hidden;
   border-radius: 16px;
   background: #e5e7eb;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 4 / 2;
   isolation: isolate;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
@@ -491,14 +496,18 @@ section header h2 {
 .collection-card__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.25) 20%, rgba(15, 23, 42, 0.55) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.5) 20%,
+    rgba(15, 23, 42, 0.75) 100%
+  );
 }
 
 .collection-card__title {
   position: absolute;
-  left: 14px;
+  /* left: 14px;
   right: 14px;
-  bottom: 14px;
+  bottom: 14px; */
   color: #ffffff;
   font-weight: 700;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
@@ -507,6 +516,148 @@ section header h2 {
 .collection-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+}
+
+/* Collection modal */
+body.collection-modal-open {
+  overflow: hidden;
+}
+
+.collection-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 16px;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.collection-modal.open {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.collection-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.collection-modal__panel {
+  position: relative;
+  width: min(420px, 100%);
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.collection-modal__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.collection-modal__search i {
+  color: #94a3b8;
+}
+
+.collection-modal__search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  background: transparent;
+}
+
+.collection-modal__list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.collection-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.collection-option:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.collection-option img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.collection-option__meta {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.collection-modal__empty {
+  padding: 20px 12px;
+  color: var(--muted);
+}
+
+.collection-modal__new {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.collection-modal__new input {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.collection-modal__new input:focus {
+  border-color: #94a3b8;
+}
+
+.btn {
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.btn:hover {
+  background: #111827;
+  transform: translateY(-1px);
 }
 
 .favorite-card {

@@ -88,6 +88,7 @@ h4 {
   --border: #e5e7eb;
   --shadow: none;
   --radius: 18px;
+  --nav-height: 72px;
 }
 
 body.theme-dark {
@@ -159,7 +160,7 @@ body.theme-dark {
 .brand-text {
   display: grid;
   gap: 2px;
-  font-size: 0.95rem;
+  font-size: 1.42rem;
   /* color: #e5e7eb; */
 }
 
@@ -289,6 +290,7 @@ main {
   background: var(--card);
   box-shadow: var(--shadow);
   padding: 18px 20px 24px;
+  min-height: calc(100vh - var(--nav-height));
 }
 
 .topbar {
@@ -299,7 +301,7 @@ main {
   flex-wrap: wrap;
   padding: 6px 0 6px;
   margin-bottom: 1.5rem;
-  background: #ffffff;
+  background: var(--card);
 }
 
 .topbar-left {
@@ -474,8 +476,7 @@ section header h2 {
 /* ==== Card ===== */
 
 .cards-grid,
-.favorite-list,
-.collection-list {
+.favorite-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 18px;
@@ -609,7 +610,10 @@ section header h2 {
 
 .collection-list {
   display: grid;
+  grid-template-columns: 1fr;
   gap: 18px;
+  grid-auto-rows: auto;
+  grid-auto-flow: row;
   width: 100%;
 }
 

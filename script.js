@@ -38,6 +38,7 @@ const els = {
   collectionList: document.getElementById("collection-list"),
   favoriteList: document.getElementById("favorite-list"),
   menuToggle: document.querySelector("[data-menu-toggle]"),
+  nav: document.querySelector(".site-nav"),
   sidebar: document.getElementById("sidebar"),
   overlay: document.getElementById("menu-overlay"),
   collectionModal: null,
@@ -789,6 +790,24 @@ function observeImages(selector = ".cards-grid, .favorite-list, .collection-list
   });
 }
 
+function syncNavHeight() {
+  // Aligne la variable CSS --nav-height sur la hauteur reelle du header
+  const nav = els.nav || document.querySelector(".site-nav");
+  if (!nav) return;
+
+  const setHeight = () => {
+    const height = nav.getBoundingClientRect().height || 0;
+    document.documentElement.style.setProperty("--nav-height", `${height}px`);
+  };
+
+  setHeight();
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(setHeight);
+    observer.observe(nav);
+  }
+  window.addEventListener("resize", setHeight);
+}
+
 function updateResultButtons() {
   // Synchronise l'etat des boutons favoris en fonction du store
   if (!els.resultsGrid) return;
@@ -1106,6 +1125,7 @@ async function init() {
   }
 
   bindMenu();
+  syncNavHeight();
 
   window.addEventListener("resize", () => {
     applyMasonry();

@@ -140,7 +140,6 @@ function renderResults(items) {
               <img class="avatar" src="${item.avatar}" alt="${item.author}" loading="lazy">
               <div class="meta">
                 <strong>${item.author}</strong>
-                <span class="muted">${item.followers} followers</span>
               </div>
             </div>
             <button type="button" class="icon-btn ghost" data-download-id="${item.id}" aria-label="Télécharger l'image" title="Télécharger l'image"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
@@ -690,7 +689,6 @@ function mapUnsplashList(list, isSearch) {
     avatar:
       photo.user?.profile_image?.medium ||
       `https://source.boringavatars.com/marble/48/${photo.user?.username || photo.id}`,
-    followers: photo.user?.total_photos ?? photo.likes ?? 0,
     download: photo.links?.download || photo.urls?.full || photo.urls?.regular,
     downloadLocation: photo.links?.download_location,
   }));

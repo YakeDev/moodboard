@@ -1,9 +1,17 @@
-﻿import { API_KEY } from "./config.js";
+// API key handled server-side (Vercel proxy)
 
 const DEFAULT_QUERY = "";
 const PER_PAGE = 20;
 const FAVORITES_KEY = "moodboard:favorites";
 const COLLECTIONS_KEY = "moodboard:collections";
+const clientApiKeyPromise = (async () => {
+  try {
+    const mod = await import("./config.js");
+    return mod.API_KEY || null;
+  } catch (error) {
+    return null;
+  }
+})();
 
 // Etat applicatif centralise
 const state = {
@@ -18,6 +26,7 @@ const state = {
 const els = {
   searchForm: document.getElementById("search-form"),
   searchInput: document.getElementById("search-input"),
+  quickFilters: document.getElementById("quick-filters"),
   resultStatus: document.getElementById("result-status"),
   resultsGrid: document.getElementById("results-grid"),
   collectionList: document.getElementById("collection-list"),
@@ -37,6 +46,10 @@ const els = {
 
 const fontsReady = document.fonts?.ready ?? Promise.resolve();
 let activeCollectionPhoto = null;
+let activeDetailCollection = null;
+let lightboxItems = [];
+let lightboxIndex = 0;
+const lightboxEls = {};
 
 // Gestion centralisee du stockage local
 const storage = {
@@ -107,7 +120,7 @@ function renderResults(items) {
       const active = isFavorite(item.id) ? " active" : "";
       return `
         <article class="card" data-photo-id="${item.id}">
-          <img src="${item.src}" alt="${item.alt}">
+          <img src="${item.src}" alt="${item.alt}" loading="lazy" data-lightbox-trigger="${item.id}">
           <div class="card-actions" aria-label="Actions rapides">
             <button type="button" class="icon-btn fav-btn${active}" data-fav-toggle="${item.id}" aria-pressed="${Boolean(active)}" aria-label="Ajouter aux favoris" title="Ajouter aux favoris">
               <i class="fa-regular fa-heart" aria-hidden="true"></i>
@@ -116,13 +129,13 @@ function renderResults(items) {
           </div>
           <div class="card-footer">
             <div class="author">
-              <img class="avatar" src="${item.avatar}" alt="${item.author}">
+              <img class="avatar" src="${item.avatar}" alt="${item.author}" loading="lazy">
               <div class="meta">
                 <strong>${item.author}</strong>
                 <span class="muted">${item.followers} followers</span>
               </div>
             </div>
-            <button type="button" class="icon-btn ghost" aria-label="Télécharger l'image" title="Télécharger l'image"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+            <button type="button" class="icon-btn ghost" data-download-id="${item.id}" aria-label="Télécharger l'image" title="Télécharger l'image"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
           </div>
         </article>
       `;
@@ -132,8 +145,29 @@ function renderResults(items) {
   layoutAfterImages(els.resultsGrid, ".card");
 }
 
+function renderSkeletonResults(count = 8) {
+  if (!els.resultsGrid) return;
+  const placeholders = Array.from({ length: count })
+    .map(() => `<div class="skeleton skeleton-card"></div>`)
+    .join("");
+  els.resultsGrid.innerHTML = `<div class="skeleton-grid" aria-hidden="true">${placeholders}</div>`;
+}
+
 function renderCollections(sections) {
   if (!els.collectionList) return;
+
+  const hasItems = sections.some((section) => (section.items || []).length);
+
+  if (!hasItems) {
+    els.collectionList.innerHTML = `
+      <div class="empty-state">
+        <h3>Pas encore de collection</h3>
+        <div class="muted">Crée ta première collection pour organiser tes inspirations.</div>
+        <button type="button" class="btn" data-collection-create>Créer une collection</button>
+      </div>
+    `;
+    return;
+  }
 
   // Injecte les sections (vos collections + suggestions)
   els.collectionList.innerHTML = sections
@@ -146,7 +180,7 @@ function renderCollections(sections) {
               .map(
                 (item) => `
                   <article class="collection-card" data-collection-id="${item.id || item.name}">
-                    <img src="${item.cover}" alt="${item.name}">
+                    <img src="${item.cover}" alt="${item.name}" loading="lazy">
                     <div class="collection-card__overlay"></div>
                     <div class="collection-card__title">${item.name}</div>
                   </article>
@@ -175,10 +209,10 @@ function renderFavorites(favorites) {
           <div class="card-actions">
             <button type="button" class="icon-btn" data-fav-toggle="${favorite.id}" aria-label="Retirer des favoris"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
           </div>
-          <img src="${favorite.src}" alt="${favorite.alt}">
+          <img src="${favorite.src}" alt="${favorite.alt}" loading="lazy" data-lightbox-trigger="${favorite.id}">
           <div class="card-footer">
             <div class="author">
-              <img class="avatar" src="${favorite.avatar || favorite.src}" alt="${favorite.author}">
+              <img class="avatar" src="${favorite.avatar || favorite.src}" alt="${favorite.author}" loading="lazy">
               <div class="meta">
                 <strong>${favorite.author}</strong>
               </div>
@@ -247,6 +281,19 @@ function addPhotoToCollection(collectionName, photo) {
     collection.items.push(photo);
   }
 
+  storage.saveCollections(state.collections);
+  renderCollections(buildCollectionSections());
+  renderCollectionModalList(els.collectionModalSearch?.value || "");
+}
+
+function promptCollectionCreation() {
+  const input = window.prompt("Nom de la collection :", "");
+  const name = normalizeName(input || "");
+  if (!name) return;
+  const exists = state.collections.some((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (exists) return;
+  const collection = { id: `col-${Date.now()}`, name, items: [] };
+  state.collections.push(collection);
   storage.saveCollections(state.collections);
   renderCollections(buildCollectionSections());
   renderCollectionModalList(els.collectionModalSearch?.value || "");
@@ -363,6 +410,14 @@ function ensureCollectionDetailModal() {
   els.collectionDetailTitle = wrapper.querySelector("[data-col-detail-title]");
   els.collectionDetailGrid = wrapper.querySelector("[data-col-detail-grid]");
   els.collectionDetailCount = wrapper.querySelector("[data-col-detail-count]");
+  if (els.collectionDetailGrid) {
+    els.collectionDetailGrid.addEventListener("click", (event) => {
+      const img = event.target.closest("[data-lightbox-trigger]");
+      if (!img || !els.collectionDetailGrid?.contains(img)) return;
+      const id = img.getAttribute("data-lightbox-trigger");
+      openLightbox(activeDetailCollection?.items || [], id);
+    });
+  }
 
   wrapper.addEventListener("click", (event) => {
     if (event.target.closest("[data-col-detail-close]")) {
@@ -389,10 +444,10 @@ function renderCollectionDetail(collection) {
     .map(
       (item) => `
         <article class="card collection-detail-card">
-          <img src="${item.src}" alt="${item.alt}">
+          <img src="${item.src}" alt="${item.alt}" loading="lazy" data-lightbox-trigger="${item.id}">
           <div class="card-footer">
             <div class="author">
-              <img class="avatar" src="${item.avatar}" alt="${item.author}">
+              <img class="avatar" src="${item.avatar}" alt="${item.author}" loading="lazy">
               <div class="meta">
                 <strong>${item.author}</strong>
               </div>
@@ -410,6 +465,7 @@ function openCollectionDetail(collectionId) {
   const collection = state.collections.find((c) => c.id === collectionId);
   if (!collection) return;
 
+  activeDetailCollection = collection;
   els.collectionDetailTitle.textContent = collection.name;
   const count = collection.items.length;
   if (els.collectionDetailCount) {
@@ -424,6 +480,7 @@ function closeCollectionDetail() {
   if (!els.collectionDetailModal) return;
   els.collectionDetailModal.classList.remove("open");
   document.body.classList.remove("collection-modal-open");
+  activeDetailCollection = null;
 }
 
 function renderCollectionModalList(filterTerm = "") {
@@ -444,7 +501,7 @@ function renderCollectionModalList(filterTerm = "") {
       return `
         <div class="collection-option" data-col-select="${collection.id}">
           <div class="collection-option__info">
-            <img src="${cover}" alt="" aria-hidden="true">
+            <img src="${cover}" alt="" aria-hidden="true" loading="lazy">
             <div class="collection-option__meta">
               <strong>${collection.name}</strong>
               <span class="muted">${label}</span>
@@ -527,33 +584,9 @@ function bindMenu() {
   }
 }
 
-async function fetchPhotos(query) {
-  const term = (query || "").trim();
-  const isSearch = Boolean(term);
-  const url = isSearch
-    ? new URL("https://api.unsplash.com/search/photos")
-    : new URL("https://api.unsplash.com/photos");
-
-  if (isSearch) {
-    url.searchParams.set("query", term);
-  }
-
-  url.searchParams.set("per_page", PER_PAGE);
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Authorization: `Client-ID ${API_KEY}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Erreur API Unsplash (${response.status})`);
-  }
-
-  const data = await response.json();
-  const list = isSearch ? data.results || [] : data || [];
-
-  return list.map((photo) => ({
+function mapUnsplashList(list, isSearch) {
+  const items = isSearch ? list.results || [] : list || [];
+  return items.map((photo) => ({
     id: photo.id,
     src: photo.urls?.regular || photo.urls?.small,
     alt: photo.alt_description || photo.description || "Visuel Unsplash",
@@ -562,7 +595,57 @@ async function fetchPhotos(query) {
       photo.user?.profile_image?.medium ||
       `https://source.boringavatars.com/marble/48/${photo.user?.username || photo.id}`,
     followers: photo.user?.total_photos ?? photo.likes ?? 0,
+    download: photo.links?.download || photo.urls?.full || photo.urls?.regular,
+    downloadLocation: photo.links?.download_location,
   }));
+}
+
+async function fetchPhotos(query) {
+  const term = (query || "").trim();
+  const isSearch = Boolean(term);
+  const params = new URLSearchParams({ per_page: String(PER_PAGE) });
+  if (isSearch) params.set("query", term);
+
+  // Tentative via proxy Vercel
+  try {
+    const proxyUrl = new URL("/api/unsplash", window.location.origin);
+    proxyUrl.search = params.toString();
+    const response = await fetch(proxyUrl.toString());
+    if (!response.ok) {
+      if (response.status !== 404) {
+        throw new Error(`Erreur API Unsplash (${response.status})`);
+      }
+    } else {
+      const data = await response.json();
+      return mapUnsplashList(data, isSearch);
+    }
+  } catch (error) {
+    console.warn("Proxy indisponible, fallback vers Unsplash direct", error);
+  }
+
+  // Fallback direct pour le dev local (requiert config.js non versionné)
+  const clientKey = await clientApiKeyPromise;
+  if (!clientKey) {
+    throw new Error("Proxy Vercel indisponible et clé locale absente.");
+  }
+
+  const directUrl = new URL(
+    isSearch ? "https://api.unsplash.com/search/photos" : "https://api.unsplash.com/photos"
+  );
+  directUrl.search = params.toString();
+
+  const fallback = await fetch(directUrl.toString(), {
+    headers: {
+      Authorization: `Client-ID ${clientKey}`,
+    },
+  });
+
+  if (!fallback.ok) {
+    throw new Error(`Erreur API Unsplash (${fallback.status})`);
+  }
+
+  const data = await fallback.json();
+  return mapUnsplashList(data, isSearch);
 }
 
 function waitForImages(container) {
@@ -582,6 +665,7 @@ function waitForImages(container) {
 function applyMasonry(container, selector) {
   // Calcule dynamiquement la hauteur de row-span pour un effet masonry fluide
   if (!container) return;
+  if (container.clientWidth < 640) return; // evite le masonry sur mobile et petit ecran
   const styles = getComputedStyle(container);
   const rowHeight = parseFloat(styles.getPropertyValue("grid-auto-rows")) || 10;
   const gap = parseFloat(styles.getPropertyValue("gap")) || 0;
@@ -605,6 +689,9 @@ function applyMasonry(container, selector) {
 function layoutAfterImages(container, selector) {
   // Recalcule la grille apres chargement des images et des fontes
   if (!container) return;
+  const isSmall = container.clientWidth < 640;
+  container.classList.toggle("no-masonry", isSmall);
+  if (isSmall) return;
   Promise.all([waitForImages(container), fontsReady]).then(() => applyMasonry(container, selector));
 }
 
@@ -622,44 +709,163 @@ function updateResultButtons() {
   });
 }
 
-function onResultsClick(event) {
-  // Delegation des clics sur favoris et ajout en collection
-  const target = event.target.closest("[data-fav-toggle], [data-collection-add]");
-  if (!target || !els.resultsGrid?.contains(target)) return;
+async function triggerDownload(photo) {
+  if (!photo) return;
 
-  const favId = target.getAttribute("data-fav-toggle");
-  const collectionId = target.getAttribute("data-collection-add");
+  const link = photo.download || photo.src;
+  if (link) {
+    window.open(link, "_blank", "noopener");
+  }
+}
 
-  if (favId) {
-    const photo = state.results.find((item) => item.id === favId);
-    if (photo) {
-      toggleFavorite(photo);
+function ensureLightbox() {
+  if (lightboxEls.root) return;
+  const root = document.createElement("div");
+  root.className = "lightbox";
+  root.innerHTML = `
+    <div class="lightbox__content">
+      <button type="button" class="lightbox__close" data-lightbox-close aria-label="Fermer">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+      <img class="lightbox__img" alt="" />
+      <button type="button" class="lightbox__nav lightbox__nav--prev" data-lightbox-prev aria-label="Image précédente">
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="lightbox__nav lightbox__nav--next" data-lightbox-next aria-label="Image suivante">
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(root);
+
+  lightboxEls.root = root;
+  lightboxEls.img = root.querySelector(".lightbox__img");
+  lightboxEls.prev = root.querySelector("[data-lightbox-prev]");
+  lightboxEls.next = root.querySelector("[data-lightbox-next]");
+
+  root.addEventListener("click", (event) => {
+    if (event.target === root || event.target.closest("[data-lightbox-close]")) {
+      closeLightbox();
     }
-    return;
+  });
+
+  lightboxEls.prev?.addEventListener("click", () => stepLightbox(-1));
+  lightboxEls.next?.addEventListener("click", () => stepLightbox(1));
+
+  window.addEventListener("keydown", (event) => {
+    if (!lightboxEls.root?.classList.contains("open")) return;
+    if (event.key === "Escape") closeLightbox();
+    if (event.key === "ArrowRight") stepLightbox(1);
+    if (event.key === "ArrowLeft") stepLightbox(-1);
+  });
+}
+
+function renderLightbox() {
+  const current = lightboxItems[lightboxIndex];
+  if (!current) return;
+  if (lightboxEls.img) {
+    lightboxEls.img.src = current.src;
+    lightboxEls.img.alt = current.alt || "Aperçu";
+  }
+  const controlsVisible = lightboxItems.length > 1;
+  if (lightboxEls.prev) {
+    lightboxEls.prev.style.display = controlsVisible ? "grid" : "none";
+  }
+  if (lightboxEls.next) {
+    lightboxEls.next.style.display = controlsVisible ? "grid" : "none";
+  }
+}
+
+function openLightbox(items, startId) {
+  if (!items || !items.length) return;
+  ensureLightbox();
+  lightboxItems = items;
+  const index = items.findIndex((item) => item.id === startId);
+  lightboxIndex = index >= 0 ? index : 0;
+  renderLightbox();
+  lightboxEls.root?.classList.add("open");
+  document.body.classList.add("lightbox-open");
+}
+
+function closeLightbox() {
+  lightboxEls.root?.classList.remove("open");
+  document.body.classList.remove("lightbox-open");
+}
+
+function stepLightbox(delta) {
+  if (!lightboxItems.length) return;
+  lightboxIndex = (lightboxIndex + delta + lightboxItems.length) % lightboxItems.length;
+  renderLightbox();
+}
+
+function onResultsClick(event) {
+  // Delegation des clics sur favoris, collection, download et ouverture lightbox
+  const actionTarget = event.target.closest("[data-fav-toggle], [data-collection-add], [data-download-id]");
+  if (actionTarget && els.resultsGrid?.contains(actionTarget)) {
+    const favId = actionTarget.getAttribute("data-fav-toggle");
+    const collectionId = actionTarget.getAttribute("data-collection-add");
+    const downloadId = actionTarget.getAttribute("data-download-id");
+
+    if (favId) {
+      const photo = state.results.find((item) => item.id === favId);
+      if (photo) {
+        toggleFavorite(photo);
+      }
+      return;
+    }
+
+    if (collectionId) {
+      const photo = state.results.find((item) => item.id === collectionId);
+      if (photo) {
+        openCollectionModal(photo, event);
+      }
+      return;
+    }
+
+    if (downloadId) {
+      const photo = state.results.find((item) => item.id === downloadId);
+      if (photo) {
+        triggerDownload(photo);
+      }
+      return;
+    }
   }
 
-  if (collectionId) {
-    const photo = state.results.find((item) => item.id === collectionId);
-    if (photo) {
-      openCollectionModal(photo, event);
-    }
+  const imgTarget = event.target.closest("[data-lightbox-trigger]");
+  if (imgTarget && els.resultsGrid?.contains(imgTarget)) {
+    const card = imgTarget.closest("[data-photo-id]");
+    const id = card?.getAttribute("data-photo-id");
+    openLightbox(state.results, id);
   }
 }
 
 function onFavoritesClick(event) {
   // Retrait d'un favori depuis la page dediee
   const target = event.target.closest("[data-fav-toggle]");
-  if (!target || !els.favoriteList?.contains(target)) return;
+  if (target && els.favoriteList?.contains(target)) {
+    const id = target.getAttribute("data-fav-toggle");
+    const photo = state.favorites.find((fav) => fav.id === id);
+    if (photo) {
+      toggleFavorite(photo);
+    }
+    return;
+  }
 
-  const id = target.getAttribute("data-fav-toggle");
-  const photo = state.favorites.find((fav) => fav.id === id);
-
-  if (photo) {
-    toggleFavorite(photo);
+  const img = event.target.closest("[data-lightbox-trigger]");
+  if (img && els.favoriteList?.contains(img)) {
+    const card = img.closest("[data-fav-toggle]");
+    const id = card?.getAttribute("data-fav-toggle");
+    openLightbox(state.favorites, id);
   }
 }
 
 function onCollectionsClick(event) {
+  const createBtn = event.target.closest("[data-collection-create]");
+  if (createBtn && els.collectionList?.contains(createBtn)) {
+    promptCollectionCreation();
+    return;
+  }
+
   const card = event.target.closest("[data-collection-id]");
   if (!card || !els.collectionList?.contains(card)) return;
   const id = card.getAttribute("data-collection-id");
@@ -673,6 +879,16 @@ async function handleSearch(event) {
   await loadResults(query);
 }
 
+function handleQuickFilter(event) {
+  const target = event.target.closest("[data-quick-query]");
+  if (!target) return;
+  const term = target.getAttribute("data-quick-query") || "";
+  if (els.searchInput) {
+    els.searchInput.value = term;
+  }
+  loadResults(term);
+}
+
 async function loadResults(query) {
   // Recupere et affiche les images (page d'accueil)
   if (!els.resultsGrid) return;
@@ -683,10 +899,11 @@ async function loadResults(query) {
   if (!term) {
     updateStatus("Chargement des inspirations...");
   } else {
-    updateStatus(`Chargement des images pour « ${term} » ...`);
+    updateStatus(`Chargement des images pour "${term}" ...`);
   }
 
   document.body.classList.add("is-loading");
+  renderSkeletonResults();
 
   try {
     const items = await fetchPhotos(term);
@@ -697,9 +914,9 @@ async function loadResults(query) {
     updateStatus(
       term
         ? items.length
-          ? `Résultats pour « ${term} » (premières ${Math.min(items.length, PER_PAGE)} images).`
-          : `Aucun résultat pour « ${term} ».`
-        : `Images récentes (premières ${Math.min(items.length, PER_PAGE)} images).`
+          ? `Resultats pour "${term}" (premieres ${Math.min(items.length, PER_PAGE)} images).`
+          : `Aucun resultat pour "${term}".`
+        : ""
     );
   } catch (error) {
     console.error(error);
@@ -729,6 +946,9 @@ async function init() {
   }
   if (isHomePage) {
     els.resultsGrid.addEventListener("click", onResultsClick);
+    if (els.quickFilters) {
+      els.quickFilters.addEventListener("click", handleQuickFilter);
+    }
   }
   if (els.collectionList) {
     els.collectionList.addEventListener("click", onCollectionsClick);

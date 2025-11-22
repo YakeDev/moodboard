@@ -246,6 +246,7 @@ body.theme-dark {
   outline: none;
   color: var(--text);
   font-size: 0.98rem;
+  min-width: 0;
 }
 
 .site-search i {
@@ -1198,5 +1199,11 @@ body.is-loading .global-loader {
     max-width: 100%;
     margin-left: 0;
     margin-right: 0;
+  }
+
+  /* Always show quick actions on touch screens to avoid hidden hover state */
+  .card-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

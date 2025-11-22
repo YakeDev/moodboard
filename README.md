@@ -54,7 +54,7 @@ Projet réalisé dans le cadre du TP de Web Avancé (Master 2, UDBL), visant à 
 - JavaScript ES6+ – Modules, async/await, Fetch API
 - Unsplash API – Recherche d'images libres
 - LocalStorage – Persistance des données
-- GitHub Pages – Déploiement
+- Vercel – Déploiement
 
 ## Structure du projet
 ```
@@ -63,8 +63,16 @@ Projet réalisé dans le cadre du TP de Web Avancé (Master 2, UDBL), visant à 
 |-- style.css
 |-- script.js
 |-- config.js        <- contient la clé API (NE PAS publier)
+|-- assets/
+|   |-- favicon.svg
+|-- pages/
+|   |-- collections.html
+|   |-- favoris.html
+|-- api/             <- proxy/points d'entrée backend si nécessaire
 |-- .gitignore
 |-- README.md
+|-- doc/
+|   |-- moodboard_roadmap.md
 ```
 
 ### Exemple de `.gitignore`
@@ -126,6 +134,7 @@ https://votre-nom.github.io/moodboard
 ## Auteur
 Eric Kayembe (MoodBoard)  
 Master 2 Communication & Multimédia – Université Don Bosco de Lubumbashi
+
 
 ## Licence
 Projet académique – libre d'utilisation à but éducatif.

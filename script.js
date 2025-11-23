@@ -1,4 +1,4 @@
-// API key handled server-side (Vercel proxy)
+﻿// API key handled server-side (Vercel proxy)
 
 const DEFAULT_QUERY = "";
 const PER_PAGE = 20;
@@ -451,7 +451,7 @@ function ensureCollectionModal() {
 function deleteCollection(collectionId) {
   state.collections = state.collections.filter((c) => {
     if (c.id === collectionId && isDefaultCollection(c)) {
-      return true; // ignore deletion of default
+      return true; 
     }
     return c.id !== collectionId;
   });
@@ -1068,7 +1068,7 @@ async function loadNextPage(reset = false) {
 }
 
 async function init() {
-  // Bootstrapping : hydrate l'etat, bind les evenements et charge les donnees
+  // charge les donnees
   state.favorites = storage.loadFavorites();
   state.collections = storage.loadCollections();
   const hasDefault = state.collections.some(
